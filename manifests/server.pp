@@ -9,7 +9,8 @@ and maybe configure some stuff on the server
 */
 class openvz::server {
   case $lsbdistid {
-    CentOS, RedHat: { include openvz::server::rhel}
+    CentOS, RedHat: { include openvz::server::rhel }
+    Debian: { include openvz::server::debian }
     default: { fail "Openvz not implemented for $lsbdistid"}
   }
 }

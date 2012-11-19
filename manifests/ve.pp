@@ -23,15 +23,20 @@ define openvz::ve (
       $hostname,
       $ip,
       $ostemplate,
-      $config     = "default") {
+      $config     = "default",
+      $fix_hosts = $openvz::params::fix_hosts,
+      $fix_resolve = $openvz::params::fix_resolve) {
 
-  # Constants from openvz::host
-  $openvz_conf_dir = "/etc/vz/conf"
-  $openvz_conf_file = "/etc/vz/vz.conf"
+  include openvz::params
+  $openvz_conf_dir = $openvz::params::openvz_conf_dir
+  $openvz_conf_file = $openvz::params::openvz_conf_file
+#  $fix_hosts = $openvz::params::fix_hosts
+#  $fix_resolve = $openvz::params::fix_resolve
 
   # identification based on veid
   $veid = $name
   $configfile = "${openvz_conf_dir}/${veid}.conf"
+
 
   # ensure interpretation, presence and state
   case $ensure {
@@ -112,24 +117,29 @@ define openvz::ve (
       }
 
       # Hostname
-      exec {"vzctl set ${veid} --hostname ${hostname} --save":
+      exec {"set hostname for ${veid}":
+        command => "vzctl set ${veid} --hostname ${hostname} --save",
         unless  => "test \$(vzlist -o hostname -H ${veid}) == '${hostname}'",
         require => Exec["vzctl create ${veid}"],
-        notify  => [ Exec["hostname fix ${veid}"], Exec["resolvconf fix ${veid}"] ],
       }
- 
-      # Hostname fix
-      exec {"hostname fix ${veid}":
-        command => "sh -c 'source ${openvz_conf_file}; echo -e \"127.0.0.1 localhost\\n127.0.0.1 ${hostname}.\$(facter domain) ${hostname}\" > \$VE_PRIVATE/${veid}/etc/hosts'",
-        refreshonly => true,
+
+      if $fix_hosts { 
+        # Hosts file fix
+        exec {"hosts file fix ${veid}":
+          command => "sh -c 'source ${openvz_conf_file}; echo -e \"127.0.0.1 localhost\\n127.0.0.1 ${hostname}.\$(facter domain) ${hostname}\" > \$VE_PRIVATE/${veid}/etc/hosts'",
+          refreshonly => true,
+        }
+        Exec["set hostname for ${veid}"] ~> Exec["hosts file fix ${veid}"]
       }
-     
-      # resolv.conf fix
-      exec {"resolvconf fix ${veid}":
-        command => "sh -c 'source ${openvz_conf_file}; cp -f /etc/resolv.conf \$VE_PRIVATE/${veid}/etc/resolv.conf'",
-        refreshonly => true,
-      }
-        
+    
+      if $fix_resolve {
+        # resolv.conf fix
+        exec {"resolvconf fix ${veid}":
+          command => "sh -c 'source ${openvz_conf_file}; cp -f /etc/resolv.conf \$VE_PRIVATE/${veid}/etc/resolv.conf'",
+          refreshonly => true,
+        }
+        Exec["set hostname for ${veid}"] ~> Exec["resolvconf fix ${veid}"]
+      }        
     }
 
     "absent": {

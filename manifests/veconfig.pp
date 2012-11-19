@@ -12,7 +12,9 @@ It whill create a configuration template for the case we have 10 VE on the serve
 
 */
 define openvz::veconfig($ensure=present) {
-  $openvz_conf_dir = "/etc/vz/conf"
+
+  include openvz::params
+  $openvz_conf_dir = $openvz::params::openvz_conf_dir
 
   case $ensure {
     present: {

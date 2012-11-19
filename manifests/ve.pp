@@ -64,7 +64,7 @@ define openvz::ve (
 
       # Ressource management (based on config templates)
       exec {"vzctl set ${veid} --applyconfig ${config} --save":
-        unless  => "source ${configfile}; test \"\$ORIGIN_SAMPLE\" == \"${config}\"",
+        unless  => "sh -c 'source ${configfile}; test \"\$ORIGIN_SAMPLE\" == \"${config}\"'",
         require => [Exec["vzctl create ${veid}"], File["${openvz_conf_dir}/ve-${config}.conf-sample"]],
       }
 
@@ -78,7 +78,7 @@ define openvz::ve (
 
           # Onboot
           exec {"vzctl set ${veid} --onboot yes --save":
-            unless  =>  "source ${configfile}; test \"\$ONBOOT\" == \"yes\"",
+            unless  =>  "sh -c 'source ${configfile}; test \"\$ONBOOT\" == \"yes\"'",
             require => Exec["vzctl create ${veid}"],
           }
         }
@@ -93,7 +93,7 @@ define openvz::ve (
 
           # Onboot
           exec {"vzctl set ${veid} --onboot no --save":
-            unless  =>  "source ${configfile}; test \"\$ONBOOT\" == \"no\"",
+            unless  =>  "sh -c 'source ${configfile}; test \"\$ONBOOT\" == \"no\"'",
             require => Exec["vzctl create ${veid}"],
           }
         }
@@ -117,16 +117,16 @@ define openvz::ve (
         require => Exec["vzctl create ${veid}"],
         notify  => [ Exec["hostname fix ${veid}"], Exec["resolvconf fix ${veid}"] ],
       }
-      
+ 
       # Hostname fix
       exec {"hostname fix ${veid}":
-        command => "source ${openvz_conf_file}; echo -e \"127.0.0.1 localhost\\n127.0.0.1 ${hostname}.\$(facter domain) ${hostname}\" > \$VE_PRIVATE/${veid}/etc/hosts",
+        command => "sh -c 'source ${openvz_conf_file}; echo -e \"127.0.0.1 localhost\\n127.0.0.1 ${hostname}.\$(facter domain) ${hostname}\" > \$VE_PRIVATE/${veid}/etc/hosts'",
         refreshonly => true,
       }
      
       # resolv.conf fix
       exec {"resolvconf fix ${veid}":
-        command => "source ${openvz_conf_file}; cp -f /etc/resolv.conf \$VE_PRIVATE/${veid}/etc/resolv.conf",
+        command => "sh -c 'source ${openvz_conf_file}; cp -f /etc/resolv.conf \$VE_PRIVATE/${veid}/etc/resolv.conf'",
         refreshonly => true,
       }
         

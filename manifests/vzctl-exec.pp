@@ -63,7 +63,10 @@ define openvz::vzctl-exec (
     default => "vzctl exec2 ${veid} ${unless}"
   }
 
-  exec { "vzctl exec2 ${veid} ${command}":
+  # Escape quotes in command
+  $real_command = regsubst($command, '"', '\\"', 'G')
+
+  exec { "vzctl exec2 ${veid} \"${real_command}\"":
     creates     => $real_creates,
     logoutput   => $logoutput,
     onlyif      => $real_onlyif,

@@ -111,7 +111,7 @@ define openvz::ve (
       # IP addresses
       if $ip {
         exec {"vzctl set ${veid} --ipdel all --ipadd '${ip}' --save":
-          unless  => "test \$(vzlist -a -o ip -H ${veid}) == '${ip}'",
+          unless  => "test \"\$(vzlist -a -o ip -H ${veid})\" == '${ip}'",
           require => Exec["vzctl create ${veid}"],
         }
       }

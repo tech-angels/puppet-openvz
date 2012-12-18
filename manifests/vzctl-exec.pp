@@ -45,7 +45,7 @@ define openvz::vzctl-exec (
 
   $real_creates = $creates ? {
     false   => undef,
-    default => "${openvz_private_dir}/${creates}"
+    default => "${openvz_private_dir}/${veid}/${creates}"
   }
 
   $real_onlyif = $onlyif ? {

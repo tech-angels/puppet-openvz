@@ -13,6 +13,11 @@ class openvz::server::debian {
     ensure => present,
   }
 
+  # Install corrected debian-add_ip.sh script
+  file { '/etc/vz/dists/scripts/debian-add_ip.sh':
+    source => 'puppet:///modules/openvz/debian-add_ip.sh',
+  }
+
   package{[
     "linux-image-openvz-amd64",
     "vzctl",

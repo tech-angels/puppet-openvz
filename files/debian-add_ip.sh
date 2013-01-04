@@ -89,64 +89,42 @@ iface ${LOOPBACK} inet loopback
 	fix_networking_conf
 }
 
-create_config_has_gateway= # only add a single gateway line
-create_config_has_gateway6= # only add a single gateway line
 function create_config()
 {
 	local ip=$1
-	local ifnum=$2
-
-	if [ $ifnum -eq 0 ]; then
-	    ifsuffix=""
-        else
-            ifsuffix=":${ifnum}"
-        fi
 
 	if [ "${ip#*:}" = "${ip}" ]; then
-	    grep "^auto ${VENET_DEV}${ifsuffix}$" ${CFGFILE}.bak || echo "auto ${VENET_DEV}${ifsuffix}" >> ${CFGFILE}.bak
-	    echo "iface ${VENET_DEV}${ifsuffix} inet static
+		if ! grep -q "iface ${VENET_DEV} inet static" ${CFGFILE}.ipv4 2>/dev/null ; then
+			# Install the first IPv4 interface
+			if ! grep -q "auto ${VENET_DEV}" ${CFGFILE}.bak 2>/dev/null; then
+				echo "auto ${VENET_DEV}" >> ${CFGFILE}.bak
+			fi
+			echo "iface ${VENET_DEV} inet static
 	address ${ip}
 	netmask 255.255.255.255
-	broadcast 0.0.0.0" >> ${CFGFILE}.bak
-	    if [ -z $create_config_has_gateway ]; then
-		echo "	up if [ -x /bin/ip ]; then ip route add default dev ${VENET_DEV}; exit 0; fi" >> ${CFGFILE}.bak
-		create_config_has_gateway=1
-	    fi
-	    echo >> ${CFGFILE}.bak
+	broadcast 0.0.0.0
+	up if [ -x /bin/ip ]; then ip route add default dev ${VENET_DEV}; exit 0; fi" >> ${CFGFILE}.ipv4
+		else
+			# Secondary IP, add it
+			echo "	up if [ -x /bin/ip ]; then ip addr add ${ip} dev ${VENET_DEV}; exit 0; fi
+	down if [ -x /bin/ip ]; then ip addr del ${ip} dev ${VENET_DEV}; exit 0; fi" >> ${CFGFILE}.ipv4
+		fi
 	else
-	    grep "^auto ${VENET_DEV}${ifsuffix}$" ${CFGFILE}.bak || echo "auto ${VENET_DEV}${ifsuffix}" >> ${CFGFILE}.bak
-	    echo "iface ${VENET_DEV}${ifsuffix} inet6 static
+		if ! grep -q "iface ${VENET_DEV} inet6 static" ${CFGFILE}.ipv6 2>/dev/null ; then
+			# Install the firest IPv6 interface
+			if ! grep -q "auto ${VENET_DEV}" ${CFGFILE}.bak 2>/dev/null; then
+				echo "auto ${VENET_DEV}" >> ${CFGFILE}.bak
+			fi
+			echo "iface ${VENET_DEV} inet6 static
 	address ${ip}
-	netmask 128" >> ${CFGFILE}.bak
-	    if [ -z $create_config_has_gateway6 ]; then
-		echo "	up if [ -x /bin/ip ]; then ip -6 route add default dev ${VENET_DEV}; exit 0; fi" >> ${CFGFILE}.bak
-		create_config_has_gateway6=1
-	    fi
-	    echo >> ${CFGFILE}.bak
+	netmask 128
+	up if [ -x /bin/ip ]; then ip -6 route add default dev ${VENET_DEV}; exit 0; fi" >> ${CFGFILE}.ipv6
+		else
+			# Secondary IP, add it
+			echo "	up if [ -x /bin/ip ]; then ip -6 addr add ${ip} dev ${VENET_DEV}; exit 0; fi
+	down if [ -x /bin/ip ]; then ip -6 addr del ${ip} dev ${VENET_DEV}; exit 0; fi" >> ${CFGFILE}.ipv6
+		fi
 	fi
-
-}
-
-function get_all_aliasid()
-{
-        IFNUM=-1
-        IFNUMLIST1=""
-        grep -e "^auto ${VENET_DEV}$" 2>/dev/null ${CFGFILE}.bak && IFNUMLIST1="0"
-        IFNUMLIST2=$(grep -e "^auto ${VENET_DEV}:.*$" 2>/dev/null \
-                ${CFGFILE}.bak | sed "s/.*${VENET_DEV}://")
-        IFNUMLIST="${IFNUMLIST1} ${IFNUMLIST2}"
-}
-
-function get_free_aliasid()
-{
-	local found=
-
-	[ -z "${IFNUMLIST}" ] && get_all_aliasid
-	while test -z ${found}; do
-		let IFNUM=IFNUM+1
-		echo "${IFNUMLIST}" | grep -q -E "^${IFNUM}$" 2>/dev/null ||
-			found=1
-	done
 }
 
 function add_ip()
@@ -170,36 +148,32 @@ function add_ip()
 	fi
 	if [ "${IPDELALL}" = "yes" ]; then
 		ifdown ${VENET_DEV} >/dev/null 2>&1
-		remove_debian_interface "${VENET_DEV}:[0-9]*" ${CFGFILE}
-		grep -v "up ifconfig venet0 add" /etc/network/interfaces > ${CFGFILE}.bak
-		mv ${CFGFILE}.bak ${CFGFILE}
+		setup_network
+		echo > ${CFGFILE}.ipv4
+		echo > ${CFGFILE}.ipv6
 	fi
 	if [ -n "${IP_ADDR}" ]; then
-		# IPv4s first
-		IPV4=$(echo ${IP_ADDR} | sed "s/ /\n/g" | grep -v ':')
-                IPV6=$(echo ${IP_ADDR} | sed "s/ /\n/g" | grep ':')
-		IP_ADDR="$IPV4 $IPV6"
+		setup_network
 		cp -f ${CFGFILE} ${CFGFILE}.bak
 		for ip in ${IP_ADDR}; do
 			found=
-			if grep -w "${ip}" >/dev/null 2>&1 ${CFGFILE}.bak; then
+			if grep -w "${ip}" >/dev/null 2>&1 ${CFGFILE}.ipv4 ${CFGFILE}.ipv6; then
 				continue
 			fi
-			get_free_aliasid
-			create_config ${ip} ${IFNUM}
+			create_config ${ip}
 		done
-		mv -f ${CFGFILE}.bak ${CFGFILE}
+		cat ${CFGFILE}.bak ${CFGFILE}.ipv4 ${CFGFILE}.ipv6 > ${CFGFILE}
 	fi
 	if [ "x${VE_STATE}" = "xrunning" ]; then
-		if [ "${ip#*:}" = "${ip}" ]; then
-			/sbin/ifup -a --force 2>/dev/null
-		else
-		    if [ -x /usr/sbin/invoke-rc.d ] ; then
-			invoke-rc.d networking restart > /dev/null 2>&1
-		    else
-			/etc/init.d/networking restart > /dev/null 2>&1
-		    fi
-		fi
+                if [ "${ip#*:}" = "${ip}" ]; then
+                        /sbin/ifup -a --force 2>/dev/null
+                else
+                    if [ -x /usr/sbin/invoke-rc.d ] ; then
+                        invoke-rc.d networking restart > /dev/null 2>&1
+                    else
+                        /etc/init.d/networking restart > /dev/null 2>&1
+                    fi
+                fi
 	fi
 }
 

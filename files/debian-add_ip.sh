@@ -129,9 +129,12 @@ function create_config()
 
 function get_all_aliasid()
 {
-	IFNUM=-1
-	IFNUMLIST=$(grep -e "^auto ${VENET_DEV}:.*$" 2>/dev/null \
-		${CFGFILE}.bak | sed "s/.*${VENET_DEV}://")
+        IFNUM=-1
+        IFNUMLIST1=""
+        grep -e "^auto ${VENET_DEV}$" 2>/dev/null ${CFGFILE}.bak && IFNUMLIST1="0"
+        IFNUMLIST2=$(grep -e "^auto ${VENET_DEV}:.*$" 2>/dev/null \
+                ${CFGFILE}.bak | sed "s/.*${VENET_DEV}://")
+        IFNUMLIST="${IFNUMLIST1} ${IFNUMLIST2}"
 }
 
 function get_free_aliasid()

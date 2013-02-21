@@ -96,9 +96,6 @@ function create_config()
 	if [ "${ip#*:}" = "${ip}" ]; then
 		if ! grep -q "iface ${VENET_DEV} inet static" ${CFGFILE}.ipv4 2>/dev/null ; then
 			# Install the first IPv4 interface
-			if ! grep -q "auto ${VENET_DEV}" ${CFGFILE}.bak 2>/dev/null; then
-				echo "auto ${VENET_DEV}" >> ${CFGFILE}.bak
-			fi
 			echo "iface ${VENET_DEV} inet static
 	address ${ip}
 	netmask 255.255.255.255
@@ -112,9 +109,6 @@ function create_config()
 	else
 		if ! grep -q "iface ${VENET_DEV} inet6 static" ${CFGFILE}.ipv6 2>/dev/null ; then
 			# Install the firest IPv6 interface
-			if ! grep -q "auto ${VENET_DEV}" ${CFGFILE}.bak 2>/dev/null; then
-				echo "auto ${VENET_DEV}" >> ${CFGFILE}.bak
-			fi
 			echo "iface ${VENET_DEV} inet6 static
 	address ${ip}
 	netmask 128
@@ -130,50 +124,33 @@ function create_config()
 function add_ip()
 {
 	local ip
-	local found
 	local add
 	local iface
 
-	if [ "x${VE_STATE}" = "xstarting" ]; then
-		if test -n "$IP_ADDR"; then
-			setup_network
-		else
-			# IP_ADDR empty, do we need to remove old ones?
-			if grep -q -F "${VENET_DEV}:" ${CFGFILE}; then
-				setup_network
-			fi
-		fi
-	elif ! grep -q -E "^auto ${VENET_DEV}([^:]|$)" ${CFGFILE} 2>/dev/null; then
-		setup_network
-	fi
+	setup_network
+
 	if [ "${IPDELALL}" = "yes" ]; then
 		ifdown ${VENET_DEV} >/dev/null 2>&1
-		setup_network
 		echo > ${CFGFILE}.ipv4
 		echo > ${CFGFILE}.ipv6
 	fi
 	if [ -n "${IP_ADDR}" ]; then
-		setup_network
 		cp -f ${CFGFILE} ${CFGFILE}.bak
 		for ip in ${IP_ADDR}; do
-			found=
 			if grep -w "${ip}" >/dev/null 2>&1 ${CFGFILE}.ipv4 ${CFGFILE}.ipv6; then
 				continue
 			fi
 			create_config ${ip}
 		done
+		# Set venet dev to auto if it appears in the config
+		if grep -q "iface ${VENET_DEV} inet" ${CFGFILE}.ipv4 ${CFGFILE}.ipv6 2>/dev/null ; then
+			echo "auto ${VENET_DEV}" >> ${CFGFILE}.bak
+		fi
 		cat ${CFGFILE}.bak ${CFGFILE}.ipv4 ${CFGFILE}.ipv6 > ${CFGFILE}
 	fi
 	if [ "x${VE_STATE}" = "xrunning" ]; then
-                if [ "${ip#*:}" = "${ip}" ]; then
-                        /sbin/ifup -a --force 2>/dev/null
-                else
-                    if [ -x /usr/sbin/invoke-rc.d ] ; then
-                        invoke-rc.d networking restart > /dev/null 2>&1
-                    else
-                        /etc/init.d/networking restart > /dev/null 2>&1
-                    fi
-                fi
+		ifdown --force ${VENET_DEV} 2> /dev/null
+		ifup --force ${VENET_DEV} 2> /dev/null
 	fi
 }
 

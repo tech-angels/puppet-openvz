@@ -1,13 +1,9 @@
-output = %x{which vzlist 2>&1 > /dev/null}
-if $?.exitstatus == 0
-  output = %x{vzlist -H -a -o veid,hostname,status}
-  Facter.add('veids') do
+if File.exist?('/proc/self/status')
+  output = %x{cat /proc/self/status|grep envID|cut -f 2}
+  Facter.add('veid') do
     setcode do
-      veid = []
-      output.each{|line|
-        veid.push(line.split(' ').reject{ |e| e.empty? }.join(':'))
-      }
-      veid.join(' ')
+      output.strip
     end
   end
 end
+      

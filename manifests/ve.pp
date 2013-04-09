@@ -25,7 +25,9 @@ define openvz::ve (
       $ostemplate,
       $config     = "default",
       $fix_hosts = $openvz::params::fix_hosts,
-      $fix_resolve = $openvz::params::fix_resolve) {
+      $fix_resolve = $openvz::params::fix_resolve,
+      $root_path = false,
+      $private_path = false) {
 
   include openvz::params
   $openvz_conf_dir = $openvz::params::openvz_conf_dir
@@ -37,6 +39,16 @@ define openvz::ve (
   $veid = $name
   $configfile = "${openvz_conf_dir}/${veid}.conf"
 
+  # Root and private path
+  $root_param = $root_path ? {
+    false   => '',
+    default => "--root $root_path",
+  }
+
+  $private_param = $private_path ? {
+    false   => '',
+    default => "--private $private_path",
+  }
 
   # ensure interpretation, presence and state
   case $ensure {
@@ -63,7 +75,7 @@ define openvz::ve (
     "present": {
       # VE creation
       exec {"vzctl create ${veid}":
-        command => "vzctl create ${veid} --ostemplate ${ostemplate}",
+        command => "vzctl create ${veid} --ostemplate ${ostemplate} $root_param $private_param",
         unless  => "vzlist ${veid}"
       }
 

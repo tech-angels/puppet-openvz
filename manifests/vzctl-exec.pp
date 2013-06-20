@@ -39,19 +39,19 @@ define openvz::vzctl-exec (
   $tries = 1,
   $try_sleep = false,
   $unless = false,
-  $private_path = false
+  $root_path = false
 ) {
   include openvz::params
-  $openvz_private_dir = $openvz::params::openvz_private_dir
+  $openvz_root_dir = $openvz::params::openvz_root_dir
 
-  $real_private_path = $private_path ? {
-    false   => "${openvz_private_dir}/${veid}",
-    default => $private_path,
+  $real_root_path = $root_path ? {
+    false   => "${openvz_root_dir}/${veid}",
+    default => $root_path,
   }
 
   $real_creates = $creates ? {
     false   => undef,
-    default => "${real_private_path}/${creates}"
+    default => "${real_root_path}/${creates}"
   }
 
   $real_onlyif = $onlyif ? {

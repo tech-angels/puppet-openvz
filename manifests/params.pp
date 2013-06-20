@@ -8,6 +8,11 @@ class openvz::params {
     Debian            => '/var/lib/vz/private',
   }
 
+  $openvz_root_dir = $lsbdistid ? {
+    /(Centos|RedHat)/ => '/vz/root',
+    Debian            => '/var/lib/vz/root',
+  }
+
   # OS dependant actions
   $fix_hosts = $lsbdistid ? {
     /(CentOS|RedHat)/ => true,

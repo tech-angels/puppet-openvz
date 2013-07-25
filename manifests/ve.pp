@@ -81,7 +81,7 @@ define openvz::ve (
 
       # Ressource management (based on config templates)
       exec {"vzctl set ${veid} --applyconfig ${config} --save":
-        unless  => "sh -c 'source ${configfile}; test \"\$ORIGIN_SAMPLE\" == \"${config}\"'",
+        unless  => "sh -c 'source ${configfile}; test \"\$ORIGIN_SAMPLE\" = \"${config}\"'",
         require => [Exec["vzctl create ${veid}"], File["${openvz_conf_dir}/ve-${config}.conf-sample"]],
       }
 
@@ -89,13 +89,13 @@ define openvz::ve (
       case $state {
         "running": {
           exec {"vzctl start ${veid}":
-            unless => "test \$(vzlist -a -o status -H ${veid}) == 'running'",
+            unless => "test \$(vzlist -a -o status -H ${veid}) = 'running'",
             require => Exec["vzctl create ${veid}"],
           }
 
           # Onboot
           exec {"vzctl set ${veid} --onboot yes --save":
-            unless  =>  "sh -c 'source ${configfile}; test \"\$ONBOOT\" == \"yes\"'",
+            unless  =>  "sh -c 'source ${configfile}; test \"\$ONBOOT\" = \"yes\"'",
             require => Exec["vzctl create ${veid}"],
           }
         }
@@ -104,13 +104,13 @@ define openvz::ve (
     
         "stopped": {
           exec {"vzctl stop ${veid}":
-            unless => "test \$(vzlist -a -o status -H ${veid}) == 'stopped'",
+            unless => "test \$(vzlist -a -o status -H ${veid}) = 'stopped'",
             require => Exec["vzctl create ${veid}"],
           }
 
           # Onboot
           exec {"vzctl set ${veid} --onboot no --save":
-            unless  =>  "sh -c 'source ${configfile}; test \"\$ONBOOT\" == \"no\"'",
+            unless  =>  "sh -c 'source ${configfile}; test \"\$ONBOOT\" = \"no\"'",
             require => Exec["vzctl create ${veid}"],
           }
         }
@@ -123,7 +123,7 @@ define openvz::ve (
       # IP addresses
       if $ip {
         exec {"vzctl set ${veid} --ipdel all --ipadd '${ip}' --save":
-          unless  => "test \"\$(vzlist -a -o ip -H ${veid})\" == '${ip}'",
+          unless  => "test \"\$(vzlist -a -o ip -H ${veid})\" = '${ip}'",
           require => Exec["vzctl create ${veid}"],
         }
       }
@@ -131,7 +131,7 @@ define openvz::ve (
       # Hostname
       exec {"set hostname for ${veid}":
         command => "vzctl set ${veid} --hostname ${hostname} --save",
-        unless  => "test \$(vzlist -o hostname -H ${veid}) == '${hostname}'",
+        unless  => "test \$(vzlist -o hostname -H ${veid}) = '${hostname}'",
         require => Exec["vzctl create ${veid}"],
       }
 

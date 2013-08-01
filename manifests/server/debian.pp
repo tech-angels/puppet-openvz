@@ -4,7 +4,7 @@
 
 Is included when we include `openvz::server`.
 
-It will install kernel and tools.
+It will install tools.
 
 */
 class openvz::server::debian {
@@ -19,7 +19,6 @@ class openvz::server::debian {
   }
 
   package{[
-    "linux-image-openvz-amd64",
     "vzctl",
     "vzdump",
     "vzquota"
